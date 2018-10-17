@@ -11,8 +11,8 @@ if __name__ == '__main__':
     action_num = 2
     agents = []
 
-    seed = 0
-    np.random.seed(seed)
+    # seed = 0
+    # np.random.seed(seed)
 
     # matching_pennies
     # wolf_05_05
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         state_prime_n, rewards, _, _ = env.step(actions)
         rewards_his.append(rewards)
         for j, (state, reward, state_prime, agent) in enumerate(zip(state_n, rewards, state_prime_n, agents)):
-            agent.update(state, actions[j], actions[1-j], reward, state_prime, env)
+            agent.update(state, actions[j], actions[1-j], reward, state_prime, env, done=True)
     rewards_his = np.array(rewards_his)
     print(agents[0].pi, agents[1].pi)
     history_pi_0 = [p[0][0] for p in agents[0].pi_history]

@@ -103,7 +103,7 @@ class RRQAgent(QAgent):
         self.count_R = defaultdict(partial(np.zeros, (self.action_num, self.action_num)))
 
 
-    def update(self, s, a, o, r, s2, env, done=False):
+    def update(self, s, a, o, r, s2, env, done=True):
         self.count_AOS[s][a][o] += 1.0
         decay_alpha = self.step_decay()
         if self.phi_type == 'count':
@@ -123,8 +123,8 @@ class RRQAgent(QAgent):
             Q[a][o] = (1 - decay_alpha) * Q[a][o] + decay_alpha * r
             self.Q_A[s][a] = (1 - decay_alpha) * self.Q_A[s][a] + decay_alpha * r
         else:
-            Q[a][o] = (1 - decay_alpha) * Q[a][o] + decay_alpha * (r + self.gamma * V - Q[a][o])
-            self.Q_A[s][a] = (1 - decay_alpha) * self.Q_A[s][a] + decay_alpha * (r + self.gamma * V - self.Q_A[s][a])
+            Q[a][o] = (1 - decay_alpha) * Q[a][o] + decay_alpha * (r + self.gamma * V)
+            self.Q_A[s][a] = (1 - decay_alpha) * self.Q_A[s][a] + decay_alpha * (r + self.gamma * V)
         print(self.epoch)
         self.update_policy(s, a, env)
         self.epoch += 1
