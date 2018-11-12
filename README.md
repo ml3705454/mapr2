@@ -7,7 +7,7 @@ The learning path of PR2-AC in differential game:
 
 ![PR2AC](./figures/PR2AC_3D_90.gif)
 
-## Local installation
+## Local Installation
 
 To get the environment installed correctly, you will first need to clone [rllab](https://github.com/rll/rllab), and have its path added to your PYTHONPATH environment variable.
 
@@ -31,6 +31,20 @@ pip install -e .
 ```
 
 3.Install other dependencies via pip
+
+
+## Implemented Algorithms
+
+- [X] PR2-AC/Q
+- [x] DDPG
+- [x] DDPG with Opponent Modelling
+- [x] DDPG with Symplectic Gradient Adjustment Optimization
+- [x] MADDPG
+- [x] MASQL
+- [x] IGA
+- [x] WoLF-IGA/PHC
+- [x] LOLA-Exact
+
 
 ## Examples
 
