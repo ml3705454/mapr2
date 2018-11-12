@@ -48,7 +48,9 @@ class MAVBAC(MARLAlgorithm):
             train_qf=True,
             train_policy=True,
             joint=False,
-            joint_policy=False
+            joint_policy=False,
+            opponent_action_range=None,
+            opponent_action_range_normalize=True
     ):
         super(MAVBAC, self).__init__(**base_kwargs)
 
@@ -63,6 +65,8 @@ class MAVBAC(MARLAlgorithm):
         self.plotter = plotter
         self.joint = joint
         self.joint_policy = joint_policy
+        self.opponent_action_range = opponent_action_range
+        self.opponent_action_range_normalize = opponent_action_range_normalize
 
         self._agent_id = agent_id
 
@@ -150,8 +154,14 @@ class MAVBAC(MARLAlgorithm):
         """Create a minimization operation for Q-function update."""
 
         with tf.variable_scope('target_joint_q_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
-            opponent_target_actions = tf.random_uniform(
-                (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+            if self.opponent_action_range is None:
+                opponent_target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+            else:
+                opponent_target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                if self.opponent_action_range_normalize:
+                    opponent_target_actions = tf.nn.softmax(opponent_target_actions, axis=-1)
             q_value_targets = self.target_joint_qf.output_for(
                 observations=self._next_observations_ph[:, None, :],
                 actions=self._next_actions_ph[:, None, :],
@@ -249,8 +259,10 @@ class MAVBAC(MARLAlgorithm):
             actions=self._actions_pl,
             n_action_samples=self._kernel_n_particles,
             reuse=True)
+        print(actions.shape.as_list(), [None, self._kernel_n_particles, self._opponent_action_dim])
         assert_shape(actions,
                      [None, self._kernel_n_particles, self._opponent_action_dim])
+
 
         # SVGD requires computing two empirical expectations over actions
         # (see Appendix C1.1.). To that end, we first sample a single set of

@@ -45,7 +45,9 @@ class MASQL(MARLAlgorithm):
             save_full_state=False,
             train_qf=True,
             train_policy=True,
-            joint_policy=True
+            joint_policy=True,
+            opponent_action_range=None,
+            opponent_action_range_normalize=True
     ):
         super(MASQL, self).__init__(**base_kwargs)
 
@@ -65,6 +67,8 @@ class MASQL(MARLAlgorithm):
         self._discount = discount
         self._reward_scale = reward_scale
         self.joint_policy = joint_policy
+        self.opponent_action_range = opponent_action_range
+        self.opponent_action_range_normalize = opponent_action_range_normalize
 
         self.joint = joint
         self._value_n_particles = value_n_particles
@@ -146,11 +150,26 @@ class MASQL(MARLAlgorithm):
 
         with tf.variable_scope('target_agent_{}'.format(self.agent_id), reuse=tf.AUTO_REUSE):
             # The value of the next state is approximated with uniform samples.
-            target_actions = tf.random_uniform(
-                (1, self._value_n_particles, self._action_dim), *self._env.action_range)
-            target_opponent_actions = tf.random_uniform(
-                (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
-            target_actions = tf.concat([target_actions, target_opponent_actions], axis=2)
+            # target_actions = tf.random_uniform(
+            #     (1, self._value_n_particles, self._action_dim), *self._env.action_range)
+            # opponent_target_actions = tf.random_uniform(
+            #     (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+
+            if self.opponent_action_range is None:
+                target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._action_dim), *self._env.action_range)
+                opponent_target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+            else:
+                target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._action_dim), *self._env.action_range)
+                opponent_target_actions = tf.random_uniform(
+                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                if self.opponent_action_range_normalize:
+                    target_actions = tf.nn.softmax(target_actions, axis=-1)
+                    opponent_target_actions = tf.nn.softmax(opponent_target_actions, axis=-1)
+
+            target_actions = tf.concat([target_actions, opponent_target_actions], axis=2)
 
             q_value_targets = self.target_qf.output_for(
                 observations=self._next_observations_ph[:, None, :],

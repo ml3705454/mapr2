@@ -48,7 +48,8 @@ class MADDPG(MARLAlgorithm):
             save_full_state=False,
             train_qf=True,
             train_policy=True,
-            joint_policy=False
+            joint_policy=False,
+            SGA=False
     ):
         super(MADDPG, self).__init__(**base_kwargs)
 
@@ -72,6 +73,7 @@ class MADDPG(MARLAlgorithm):
         self._discount = discount
         self._tau = tau
         self._reward_scale = reward_scale
+        self.SGA = SGA
 
         self._qf_target_update_interval = td_target_update_interval
 
@@ -139,7 +141,7 @@ class MADDPG(MARLAlgorithm):
 
         if self.opponent_modelling:
             self._recent_opponent_observations_ph = tf.placeholder(
-                tf.float32,shape=[None, self._opponent_observation_dim ],
+                tf.float32,shape=[None, self._observation_dim],
                 name='recent_opponent_observations_agent_{}'.format(self._agent_id))
             self._recent_opponent_actions_pl = tf.placeholder(
                 tf.float32, shape=[None, self._opponent_action_dim],
@@ -178,11 +180,12 @@ class MADDPG(MARLAlgorithm):
         assert_shape(ys, [None])
 
         bellman_residual = 0.5 * tf.reduce_mean((ys - self._q_values) ** 2)
-        with tf.variable_scope('q_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
-            if self._train_qf:
-                q_train_op = tf.train.AdamOptimizer(self._qf_lr).minimize(
-                    loss=bellman_residual, var_list=self.qf.get_params_internal())
-                self._training_ops.append(q_train_op)
+        if not self.SGA:
+            with tf.variable_scope('q_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
+                if self._train_qf:
+                    q_train_op = tf.train.AdamOptimizer(self._qf_lr).minimize(
+                        loss=bellman_residual, var_list=self.qf.get_params_internal())
+                    self._training_ops.append(q_train_op)
 
         self._bellman_residual = bellman_residual
 
@@ -191,6 +194,7 @@ class MADDPG(MARLAlgorithm):
         opponent_actions = self.opponent_policy.actions_for(
             observations=self._recent_opponent_observations_ph,
             reuse=tf.AUTO_REUSE)
+        print(opponent_actions, [None, self._opponent_action_dim])
         assert_shape(opponent_actions, [None, self._opponent_action_dim])
         om_loss = 0.5 * tf.reduce_mean((self._recent_opponent_actions_pl - opponent_actions) ** 2)
         with tf.variable_scope('opponent_policy_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
@@ -221,14 +225,15 @@ class MADDPG(MARLAlgorithm):
         q_targets = self.qf.output_for(self._observations_ph, actions, reuse=tf.AUTO_REUSE)  # N
         assert_shape(q_targets, [None])
         pg_loss = -tf.reduce_mean(q_targets)
-
-        with tf.variable_scope('policy_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
-            if self._train_policy:
-                optimizer = tf.train.AdamOptimizer(self._policy_lr)
-                pg_training_op = optimizer.minimize(
-                    loss=pg_loss,
-                    var_list=self.policy.get_params_internal())
-                self._training_ops.append(pg_training_op)
+        if not self.SGA:
+            with tf.variable_scope('policy_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
+                if self._train_policy:
+                    optimizer = tf.train.AdamOptimizer(self._policy_lr)
+                    pg_training_op = optimizer.minimize(
+                        loss=pg_loss,
+                        var_list=self.policy.get_params_internal())
+                    self._training_ops.append(pg_training_op)
+        self._pg_loss = pg_loss
 
     def _create_target_ops(self):
         """Create tensorflow operation for updating the target functions."""
