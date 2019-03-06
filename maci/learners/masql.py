@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from rllab.misc import logger
-from rllab.misc.overrides import overrides
+from maci.misc import logger
+from maci.misc.overrides import overrides
 
 from maci.misc.kernel import adaptive_isotropic_gaussian_kernel
 from maci.misc import tf_utils
@@ -28,6 +28,7 @@ class MASQL(MARLAlgorithm):
             qf,
             target_qf,
             policy,
+            name='MASQL',
             plotter=None,
             policy_lr=1E-3,
             qf_lr=1E-3,
@@ -51,12 +52,13 @@ class MASQL(MARLAlgorithm):
     ):
         super(MASQL, self).__init__(**base_kwargs)
 
-
+        self.name = name
         self._env = env
         self._pool = pool
         self.qf = qf
         self.target_qf = target_qf
-        self._policy = policy
+        self.policy = policy
+        self.target_policy = policy
         self.plotter = plotter
 
         self.agent_id = agent_id
@@ -159,12 +161,12 @@ class MASQL(MARLAlgorithm):
                 target_actions = tf.random_uniform(
                     (1, self._value_n_particles, self._action_dim), *self._env.action_range)
                 opponent_target_actions = tf.random_uniform(
-                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                    (1, self._value_n_particles, self._opponent_action_dim), *(-1., 1.))
             else:
                 target_actions = tf.random_uniform(
-                    (1, self._value_n_particles, self._action_dim), *self._env.action_range)
+                    (1, self._value_n_particles, self._action_dim), *(-1., 1.))
                 opponent_target_actions = tf.random_uniform(
-                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                    (1, self._value_n_particles, self._opponent_action_dim), *(-1., 1.))
                 if self.opponent_action_range_normalize:
                     target_actions = tf.nn.softmax(target_actions, axis=-1)
                     opponent_target_actions = tf.nn.softmax(opponent_target_actions, axis=-1)
@@ -341,8 +343,8 @@ class MASQL(MARLAlgorithm):
         logger.record_tabular('mean-sq-bellman-error-agent-{}'.format(self.agent_id), bellman_residual)
 
         self.policy.log_diagnostics(batch)
-        if self.plotter:
-            self.plotter.draw()
+        # if self.plotter:
+        #     self.plotter.draw()
 
     @overrides
     def get_snapshot(self, epoch):

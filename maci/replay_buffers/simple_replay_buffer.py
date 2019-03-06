@@ -1,8 +1,8 @@
 import numpy as np
 
-from rllab.core.serializable import Serializable
+from maci.core.serializable import Serializable
 
-from .replay_buffer import ReplayBuffer
+from maci.replay_buffers.replay_buffer import ReplayBuffer
 from maci.environments.env_spec import MAEnvSpec
 
 
@@ -21,6 +21,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
             self._action_dim = env_spec.action_space[agent_id].flat_dim
             if joint:
                 self._opponent_action_dim = env_spec.action_space.opponent_flat_dim(agent_id)
+                print(agent_id, self._opponent_action_dim )
                 self._opponent_actions = np.zeros((max_replay_buffer_size, self._opponent_action_dim ))
         else:
             self._action_dim = env_spec.action_space.flat_dim
@@ -48,7 +49,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
         if 'opponent_action' in kwargs:
-            print('added')
+            # print('added')
             # todo: fix adding opponent action
             self._opponent_actions[self._top] = kwargs['opponent_action']
         self._advance()

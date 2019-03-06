@@ -1,6 +1,6 @@
 # Multi-Agent Probabilistic Recursive Reasoning (MAPR2)
 Multi-Agent Probabilistic Recursive Reasoning is a multi-agent reinforcement learning framework. The algorithms are based on the paper [PROBABILISTIC RECURSIVE REASONING FOR
-MULTI-AGENT REINFORCEMENT LEARNING](https://openreview.net/pdf?id=rkl6As0cF7) submitted to the ICLR 2019.
+MULTI-AGENT REINFORCEMENT LEARNING](https://openreview.net/pdf?id=rkl6As0cF7) in ICLR 2019.
 
 
 The learning path of PR2-AC in differential game:
@@ -11,26 +11,28 @@ The learning path of PR2-AC in differential game:
 
 To get the environment installed correctly, you will first need to clone [rllab](https://github.com/rll/rllab), and have its path added to your PYTHONPATH environment variable.
 
-1.Install rllab
-
-```
+1. Clone rllrb
+  
+ ```shell
 cd <installation_path_of_your_choice>
 git clone https://github.com/rll/rllab.git
 cd rllab
 git checkout b3a28992eca103cab3cb58363dd7a4bb07f250a0
-export PYTHONPATH=$(pwd):${PYTHONPATH}
-```
+sudo pip3 install -e .
+ ```
 
-2.Install Multi-Agent Particle Environment
+ 2. Intsall other dependencies
+   
+ ```shell
+sudo pip3 install joblib,path.py,gtimer,theano,keras,tensorflow,gym, tensorflow_probability
+ ```
 
-```
-cd <installation_path_of_your_choice>
-git clone https://github.com/openai/multiagent-particle-envs.git
-cd multiagent-particle-envs
-pip install -e .
-```
-
-3.Install other dependencies via pip
+ 3. Intsall maci
+   
+ ```shell
+cd maci
+sudo pip3 install -e .
+ ```
 
 
 ## Implemented Algorithms
@@ -45,22 +47,3 @@ pip install -e .
 - [x] WoLF-IGA/PHC
 - [x] LOLA-Exact
 
-
-## Examples
-
-* Matrix Game
-```
-python3 ./experiment/run_matrix_game.py
-python3 ./experiment/run_wolf_game_no_dependency.py
-```
-
-* Differential Game
-```
-python3 ./experiment/run_different_agents.py
-python3 ./experiment/run_ddpg_sga.py
-```
-
-* Particle Games
-```
-python3 ./experiment/run_particle_different_agents.py
-```

@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from rllab.misc import logger
+from maci.misc import logger
 from copy import deepcopy
 
 
@@ -154,17 +154,20 @@ class SimpleSampler(Sampler):
 
 
 class MASampler(SimpleSampler):
-    def __init__(self, agent_num, joint, **kwargs):
+    def __init__(self, agent_num, joint, global_reward=False, **kwargs):
         super(SimpleSampler, self).__init__(**kwargs)
         self.agent_num = agent_num
         self.joint = joint
+        self.global_reward = global_reward
         self._path_length = 0
         self._path_return = np.array([0.] * self.agent_num, dtype=np.float32)
         self._last_path_return = np.array([0.] * self.agent_num, dtype=np.float32)
         self._max_path_return = np.array([-np.inf] * self.agent_num, dtype=np.float32)
         self._n_episodes = 0
         self._total_samples = 0
-
+        self.episode_rewards = [0.0]  # sum of rewards for all agents
+        self.agent_rewards = [[0.0] for _ in range(agent_num)]  # individual agent reward
+        self.step = 0
         self._current_observation_n = None
         self.env = None
         self.agents = None
@@ -186,25 +189,34 @@ class MASampler(SimpleSampler):
         self.agents = agents
 
     def sample(self):
+        self.step += 1
         if self._current_observation_n is None:
             self._current_observation_n = self.env.reset()
         action_n = []
         for agent, current_observation in zip(self.agents, self._current_observation_n):
             action, _ = agent.policy.get_action(current_observation)
+            # print(action)
             if agent.joint_policy:
                 action_n.append(np.array(action)[0:agent._action_dim])
             else:
                 action_n.append(np.array(action))
+
+        action_n = np.asarray(action_n)
+
         next_observation_n, reward_n, done_n, info = self.env.step(action_n)
+        if self.global_reward:
+            reward_n = np.array([np.sum(reward_n)] * self.agent_num)
+
         self._path_length += 1
         self._path_return += np.array(reward_n, dtype=np.float32)
         self._total_samples += 1
 
         for i, agent in enumerate(self.agents):
             action = deepcopy(action_n[i])
-            print('adding opponent')
             if agent.pool.joint:
-                opponent_action = np.delete(deepcopy(action_n), i)
+                opponent_action = deepcopy(action_n)
+                opponent_action = np.delete(opponent_action, i, 0)
+                opponent_action = np.array(opponent_action).flatten()
                 agent.pool.add_sample(observation=self._current_observation_n[i],
                                       action=action,
                                       reward=reward_n[i],
@@ -217,17 +229,26 @@ class MASampler(SimpleSampler):
                                       reward=reward_n[i],
                                       terminal=done_n[i],
                                       next_observation=next_observation_n[i])
+        self._current_observation_n = next_observation_n
+        for i, rew in enumerate(reward_n):
+            self.episode_rewards[-1] += rew
+            self.agent_rewards[i][-1] += rew
 
+        if self.step % (25 * 1000) == 0:
+            print("steps: {}, episodes: {}, mean episode reward: {}".format(
+                        self.step, len(self.episode_rewards), np.mean(self.episode_rewards[-1000:])))
         if np.all(done_n) or self._path_length >= self._max_path_length:
-            # self.policy.reset()
             self._current_observation_n = self.env.reset()
-            self._path_length = 0
             self._max_path_return = np.maximum(self._max_path_return, self._path_return)
+            self._mean_path_return = self._path_return / self._path_length
             self._last_path_return = self._path_return
+            self.episode_rewards.append(0)
+            for a in self.agent_rewards:
+                a.append(0)
+            self._path_length = 0
 
             self._path_return = np.array([0.] * self.agent_num, dtype=np.float32)
             self._n_episodes += 1
-
             self.log_diagnostics()
             logger.dump_tabular(with_prefix=False)
 
@@ -237,8 +258,10 @@ class MASampler(SimpleSampler):
     def log_diagnostics(self):
         for i in range(self.agent_num):
             logger.record_tabular('max-path-return_agent_{}'.format(i), self._max_path_return[i])
+            logger.record_tabular('mean-path-return_agent_{}'.format(i), self._mean_path_return[i])
             logger.record_tabular('last-path-return_agent_{}'.format(i), self._last_path_return[i])
         logger.record_tabular('episodes', self._n_episodes)
+        logger.record_tabular('episode_reward', self._n_episodes)
         logger.record_tabular('total-samples', self._total_samples)
 
 

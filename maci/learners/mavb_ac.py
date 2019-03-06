@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from rllab.misc import logger
-from rllab.misc.overrides import overrides
+from maci.misc import logger
+from maci.misc.overrides import overrides
 
 from maci.misc.kernel import adaptive_isotropic_gaussian_kernel
 from maci.misc import tf_utils
@@ -31,6 +31,7 @@ class MAVBAC(MARLAlgorithm):
             policy,
             target_policy,
             conditional_policy,
+            name='PR2',
             plotter=None,
             policy_lr=1E-3,
             qf_lr=1E-3,
@@ -50,23 +51,27 @@ class MAVBAC(MARLAlgorithm):
             joint=False,
             joint_policy=False,
             opponent_action_range=None,
-            opponent_action_range_normalize=True
+            opponent_action_range_normalize=True,
+            k=0,
+            aux=True
     ):
         super(MAVBAC, self).__init__(**base_kwargs)
-
+        self.name = name
         self._env = env
         self._pool = pool
         self.qf = qf
         self.joint_qf = joint_qf
         self.target_joint_qf = target_joint_qf
-        self._policy = policy
-        self._target_policy = target_policy
-        self._conditional_policy = conditional_policy
+        self.policy = policy
+        self.target_policy = target_policy
+        self.conditional_policy = conditional_policy
         self.plotter = plotter
         self.joint = joint
         self.joint_policy = joint_policy
         self.opponent_action_range = opponent_action_range
         self.opponent_action_range_normalize = opponent_action_range_normalize
+        self._k = k
+        self._aux = aux
 
         self._agent_id = agent_id
 
@@ -156,10 +161,10 @@ class MAVBAC(MARLAlgorithm):
         with tf.variable_scope('target_joint_q_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
             if self.opponent_action_range is None:
                 opponent_target_actions = tf.random_uniform(
-                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                    (1, self._value_n_particles, self._opponent_action_dim), *(-1., 1.))
             else:
                 opponent_target_actions = tf.random_uniform(
-                    (1, self._value_n_particles, self._opponent_action_dim), *self._env.action_range)
+                    (1, self._value_n_particles, self._opponent_action_dim), *(-1., 1.))
                 if self.opponent_action_range_normalize:
                     opponent_target_actions = tf.nn.softmax(opponent_target_actions, axis=-1)
             q_value_targets = self.target_joint_qf.output_for(
@@ -207,20 +212,25 @@ class MAVBAC(MARLAlgorithm):
 
     def _create_p_update(self):
         """Create a minimization operation for policy update """
-        with tf.variable_scope('target_p_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
-            self_target_actions = self._target_policy.actions_for(
+        # with tf.variable_scope('target_p_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
+        #     self_target_actions = self._target_policy.actions_for(
+        #         observations=self._observations_ph,
+        #         reuse=tf.AUTO_REUSE)
+        if self._k <= 1:
+            self_actions = self.policy.actions_for(
                 observations=self._observations_ph,
                 reuse=tf.AUTO_REUSE)
-
-        self_actions = self.policy.actions_for(
-            observations=self._observations_ph,
-            reuse=tf.AUTO_REUSE)
-        assert_shape(self_actions, [None, self._action_dim])
+            assert_shape(self_actions, [None, self._action_dim])
+        else:
+            self_actions, all_actions = self.policy.actions_for(
+                observations=self._observations_ph,
+                reuse=tf.AUTO_REUSE, all_action=True)
+            assert_shape(self_actions, [None, self._action_dim])
 
         # opponent_target_actions = tf.random_uniform(
         #     (1, self._value_n_particles, self._opponent_action_dim), -1, 1)
 
-        opponent_target_actions = self._conditional_policy.actions_for(
+        opponent_target_actions = self.conditional_policy.actions_for(
             observations=self._observations_ph,
             actions=self._actions_pl,
             n_action_samples=self._value_n_particles,
@@ -243,6 +253,34 @@ class MAVBAC(MARLAlgorithm):
         q_targets += (self._opponent_action_dim) * np.log(2)
         pg_loss = -tf.reduce_mean(q_targets)
 
+        if self._aux:
+            # only works for k = 2, 3
+            if self._k > 1:
+                q_k= self.joint_qf.output_for(
+                    observations=self._next_observations_ph,
+                    actions=all_actions[-1],
+                    opponent_actions=all_actions[-2], reuse=tf.AUTO_REUSE)
+                q_k_2 = self.joint_qf.output_for(
+                    observations=self._next_observations_ph,
+                    actions=all_actions[-3],
+                    opponent_actions=all_actions[-2], reuse=tf.AUTO_REUSE)
+                pg_loss += tf.reduce_mean(q_k_2-q_k)
+            if self._k > 3:
+                print(self._k , 'self._k ', 'self._k ')
+                q_k = self.joint_qf.output_for(
+                    observations=self._next_observations_ph,
+                    actions=all_actions[-3],
+                    opponent_actions=all_actions[-4], reuse=tf.AUTO_REUSE)
+                q_k_2 = self.joint_qf.output_for(
+                    observations=self._next_observations_ph,
+                    actions=all_actions[-5],
+                    opponent_actions=all_actions[-4], reuse=tf.AUTO_REUSE)
+                pg_loss += tf.reduce_mean(q_k_2 - q_k)
+
+
+        # todo add level k Q loss:
+
+
         with tf.variable_scope('policy_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
             if self._train_policy:
                 optimizer = tf.train.AdamOptimizer(self._policy_lr)
@@ -254,7 +292,7 @@ class MAVBAC(MARLAlgorithm):
     def _create_conditional_policy_svgd_update(self):
         """Create a minimization operation for policy update (SVGD)."""
         # print('actions')
-        actions = self._conditional_policy.actions_for(
+        actions = self.conditional_policy.actions_for(
             observations=self._observations_ph,
             actions=self._actions_pl,
             n_action_samples=self._kernel_n_particles,
@@ -321,19 +359,19 @@ class MAVBAC(MARLAlgorithm):
         # Propagate the gradient through the policy network (Equation 14).
         gradients = tf.gradients(
             updated_actions,
-            self._conditional_policy.get_params_internal(),
+            self.conditional_policy.get_params_internal(),
             grad_ys=action_gradients)
 
         surrogate_loss = tf.reduce_sum([
             tf.reduce_sum(w * tf.stop_gradient(g))
-            for w, g in zip(self._conditional_policy.get_params_internal(), gradients)
+            for w, g in zip(self.conditional_policy.get_params_internal(), gradients)
         ])
         with tf.variable_scope('conditional_policy_opt_agent_{}'.format(self._agent_id), reuse=tf.AUTO_REUSE):
             if self._train_policy:
                 optimizer = tf.train.AdamOptimizer(self._policy_lr)
                 svgd_training_op = optimizer.minimize(
                     loss=-surrogate_loss,
-                    var_list=self._conditional_policy.get_params_internal())
+                    var_list=self.conditional_policy.get_params_internal())
                 self._training_ops.append(svgd_training_op)
 
     def _create_target_ops(self):
@@ -343,8 +381,8 @@ class MAVBAC(MARLAlgorithm):
 
         source_q_params = self.joint_qf.get_params_internal()
         target_q_params = self.target_joint_qf.get_params_internal()
-        source_p_params = self._policy.get_params_internal()
-        target_p_params = self._target_policy.get_params_internal()
+        source_p_params = self.policy.get_params_internal()
+        target_p_params = self.target_policy.get_params_internal()
 
         self._target_ops = [
                                tf.assign(target, (1 - self._tau) * target + self._tau * source)

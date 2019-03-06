@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from rllab.core.serializable import Serializable
-from sandbox.rocky.tf.core.parameterized import Parameterized
+from maci.core.serializable import Serializable
+from maci.core.parameterized import Parameterized
 
 from maci.misc import tf_utils
 
@@ -27,6 +27,7 @@ def feedforward_net(inputs,
 
     out = 0
     # print(inputs)
+    # print('xxxx')
     # print(layer_sizes)
     for i, layer_size in enumerate(layer_sizes):
         with tf.variable_scope('layer_{i}'.format(i=i), reuse=tf.AUTO_REUSE):
@@ -36,7 +37,6 @@ def feedforward_net(inputs,
                     tmp = linear(input_tensor, layer_size, j)
                     # print(tmp.shape)
                     out += tmp
-                    # print(out.shape)
             else:
                 out = linear(out, layer_size)
 

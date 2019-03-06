@@ -1,5 +1,4 @@
-
-from rllab.core.serializable import Serializable
+from maci.core.serializable import Serializable
 from maci.misc.space import MASpace
 import numpy as np
 

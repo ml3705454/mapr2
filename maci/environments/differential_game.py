@@ -30,8 +30,6 @@ class DifferentialGame(Serializable):
             assert self.agent_num == 2
             self.payoff[0] = lambda a1, a2: np.cos(a2) * a1
             self.payoff[1] = lambda a1, a2: np.sin(a1) * a2
-        # This is also an extension to the classical matching pennies game, but here the
-        # payoff function is smooth:
         elif self.game == 'mataching_pennies':
             assert self.agent_num == 2
             self.payoff[0] = lambda a1, a2: (a1-0.5)*(a2-0.5)
@@ -64,7 +62,6 @@ class DifferentialGame(Serializable):
             y1 = -5.
             y2 = 5.
             c = 10.
-
             def max_f(a1, a2):
                 f1 = h1 * (-(np.square(a1 - x1) / s1) - (np.square(a2 - y1) / s1))
                 f2 = h2 * (-(np.square(a1 - x2) / s2) - (np.square(a2 - y2) / s2)) + c
@@ -81,9 +78,12 @@ class DifferentialGame(Serializable):
 
     def step(self, actions):
         assert len(actions) == self.agent_num
+        print('actions', actions)
+        actions = np.array(actions).reshape((self.agent_num,)) * self.action_range[1]
+        print('scaled', actions)
         reward_n = np.zeros((self.agent_num,))
         for i in range(self.agent_num):
-            # print('actions', actions)
+            print('actions', actions)
             reward_n[i] = self.payoff[i](*tuple(actions))
         self.rewards = reward_n
         print(reward_n)

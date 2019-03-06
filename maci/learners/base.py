@@ -3,12 +3,14 @@ import gtimer as gt
 
 import numpy as np
 
-from rllab.misc import logger
-from rllab.algos.base import Algorithm
+from maci.misc import logger
 
 from maci.core.serializable import deep_clone
 from maci.misc import tf_utils
 from maci.misc.sampler import rollouts
+
+class Algorithm(object):
+    pass
 
 
 class RLAlgorithm(Algorithm):
@@ -195,9 +197,9 @@ class RLAlgorithm(Algorithm):
         self._policy = policy
         self._pool = pool
 
-    @property
-    def policy(self):
-        return self._policy
+    # @property
+    # def policy(self):
+    #     return self._policy
 
     @property
     def env(self):
@@ -392,9 +394,9 @@ class MARLAlgorithm(Algorithm):
         self._policy = policy
         self._pool = pool
 
-    @property
-    def policy(self):
-        return self._policy
+    # @property
+    # def policy(self):
+    #     return self._policy
 
     @property
     def env(self):
