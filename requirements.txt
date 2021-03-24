@@ -176,7 +176,7 @@ redis==3.0.1
 requests==2.20.0
 -e git+https://github.com/rlworkgroup/garage.git@56cc4a65d956a5c51c73005066dcc04f3ed1b003#egg=rlgarage
 -e git+https://github.com/rll/rllab.git@b3a28992eca103cab3cb58363dd7a4bb07f250a0#egg=rllab
-rsa==3.4.2
+rsa==4.1
 ruamel.yaml==0.15.46
 s3transfer==0.1.13
 scikit-image==0.14.1
