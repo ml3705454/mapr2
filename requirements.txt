@@ -168,7 +168,7 @@ python-editor==1.0.3
 python-utils==2.3.0
 pytz==2018.7
 PyWavelets==1.0.1
-PyYAML==3.13
+PyYAML==5.4
 pyzmq==17.1.2
 qtconsole==4.4.2
 ray==0.6.1
