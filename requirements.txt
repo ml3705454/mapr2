@@ -31,7 +31,7 @@ cookiecutter==1.6.0
 cryptography==2.3.1
 cycler==0.10.0
 Cython==0.29.1
-dask==1.0.0
+dask==2021.10.0
 decorator==4.3.0
 deepdiff==3.3.0
 defusedxml==0.5.0
