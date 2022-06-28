@@ -2,7 +2,7 @@ absl-py==0.5.0
 alembic==1.0.5
 aniso8601==4.0.1
 appnope==0.1.0
-arrow==0.12.1
+arrow==0.15.1
 asn1crypto==0.24.0
 astor==0.7.1
 atari-py==0.1.7
