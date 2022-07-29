@@ -111,7 +111,7 @@ MarkupSafe==1.0
 marshmallow==2.16.3
 matplotlib==3.0.0
 mccabe==0.6.1
-mistune==0.8.4
+mistune==2.0.3
 more-itertools==4.3.0
 mpi4py==3.0.0
 mujoco-py==1.50.1.68
