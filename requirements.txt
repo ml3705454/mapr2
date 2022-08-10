@@ -117,7 +117,7 @@ mpi4py==3.0.0
 mujoco-py==1.50.1.68
 -e git+https://github.com/openai/multiagent-particle-envs.git@6ed7cac026f0eb345d4c20232bafa1dc951c68e7#egg=multiagent
 multiworld==0.0.0
-nbconvert==5.4.0
+nbconvert==6.3.0
 nbformat==4.4.0
 networkx==2.2
 notebook==5.7.0
